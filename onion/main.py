@@ -1,8 +1,9 @@
+from olive.proto import zoodroom_pb2_grpc, health_pb2_grpc
 from olive.store.mongo_connection import MongoConnection
 from onion.core.store.leaf_store import LeafStore
+from olive.proto.health import HealthService
 from olive.proto.rpc import GRPCServerBase
 from onion.core.onion import OnionService
-from olive.proto import zoodroom_pb2_grpc
 from cement.core.exc import CaughtSignal
 from onion.controllers.base import Base
 from olive.exc import OnionServiceError
@@ -72,8 +73,11 @@ class OnionServer(GRPCServerBase):
         # add class to gRPC server
         service = OnionService(leaf_store=leaf_store,
                                app=app)
+        health_service = HealthService(app=app)
+
         # adds a OnionService to a gRPC.Server
         zoodroom_pb2_grpc.add_OnionServiceServicer_to_server(service, self.server)
+        health_pb2_grpc.add_HealthServicer_to_server(health_service, self.server)
 
 
 class OnionAppTest(TestApp, OnionApp):
