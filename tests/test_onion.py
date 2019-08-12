@@ -1,4 +1,7 @@
+from olive.store.mongo_connection import MongoConnection
 from olive.proto import zoodroom_pb2_grpc, zoodroom_pb2
+from onion.core.store.leaf import LeafStore
+from onion.core.onion import OnionService
 from decorator import contextmanager
 from onion.main import OnionAppTest
 from concurrent import futures
@@ -21,29 +24,11 @@ def test_onion_debug():
         assert app.debug is True
 
 
-def test_command1():
-    # test command1 without arguments
-    argv = ['command1']
-    with OnionAppTest(argv=argv) as app:
-        app.run()
-        data, output = app.last_rendered
-        assert data['foo'] == 'bar'
-        assert output.find('Foo => bar')
-
-    # test command1 with arguments
-    argv = ['command1', '--foo', 'not-bar']
-    with OnionAppTest(argv=argv) as app:
-        app.run()
-        data, output = app.last_rendered
-        assert data['foo'] == 'not-bar'
-        assert output.find('Foo => not-bar')
-
-
 @contextmanager
-def add_leaf(cls):
-    """Instantiate an Onion server and return a stub for use in tests"""
+def grpc_server(cls, onion_store, app):
+    """Instantiate a Onion server and return a stub for use in tests"""
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    zoodroom_pb2_grpc.add_OnionServiceServicer_to_server(cls(), server)
+    zoodroom_pb2_grpc.add_OnionServiceServicer_to_server(cls(LeafStore, app), server)
     port = server.add_insecure_port('[::]:0')
     server.start()
 
@@ -54,15 +39,20 @@ def add_leaf(cls):
         server.stop(None)
 
 
-class SurveyTest(unittest.TestCase):
-    def test_add_leaf(self):
-        # may do something extra for this mock if it's stateful
-        class FakeAddLeaf(zoodroom_pb2_grpc.OnionServiceServicer):
-            def AddLeaf(self, request, context):
-                return zoodroom_pb2.AddLeafResponse()
+class LeafTest(unittest.TestCase):
+    def setUp(self):
+        self.app = OnionAppTest(config_files=['/etc/onion/onion.yml'])
+        self.app.__enter__()
+        mongodb_cfg = self.app.config['onion']['mongodb']
+        mongo = MongoConnection(mongodb_cfg, self.app)
+        target_database = mongo.service_db
+        self.sample_setting = self.app.config['onion']['sample_setting']
+        self.leaf_store = LeafStore(target_database.leaf, self.app)
+        self.grpc_server = grpc_server(OnionService, self.leaf_store, self.app)
 
-        with add_leaf(FakeAddLeaf) as stub:
+    def test_add_leaf(self):
+        with grpc_server(OnionService, self.leaf_store, self.app) as stub:
             response = stub.AddLeaf(zoodroom_pb2.AddLeafRequest(
-                # TODO put proto fields here for request
+                leaf_name='Leaf of Onion'
             ))
-            self.assertEqual(response.leaf_id, '')
+            self.assertNotEqual(response.leaf_id, '')

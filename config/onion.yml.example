@@ -10,7 +10,7 @@ onion:
     ### Toggle application level debug (does not toggle framework debugging)
     debug: true
 
-cache.redis:
+cache.iredis:
     expire_time: 60
     host: 127.0.0.1
     port: 6379

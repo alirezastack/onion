@@ -1,10 +1,11 @@
+from olive.store.toolbox import MongoObjectId, BaseSchema
 from olive.toolbox import MarshmallowDateTimeField
-from marshmallow import Schema, fields, EXCLUDE
 from olive.consts import UTC_DATE_FORMAT
+from marshmallow import fields, EXCLUDE
 import datetime
 
 
-class LeafSchema(Schema):
+class LeafSchema(BaseSchema):
     class Meta:
         # Tuple or list of fields to include in the serialized result
         fields = ("_id", "title", "created_at")
@@ -20,3 +21,4 @@ class LeafSchema(Schema):
                                           default=lambda: datetime.datetime.utcnow(),
                                           allow_none=False
                                           )
+    _id = MongoObjectId(allow_none=False)

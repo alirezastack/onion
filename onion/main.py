@@ -1,6 +1,7 @@
+from olive.store.redis_cache_handler import CustomRedisCacheHandler
 from olive.proto import zoodroom_pb2_grpc, health_pb2_grpc
 from olive.store.mongo_connection import MongoConnection
-from onion.core.store.leaf_store import LeafStore
+from onion.core.store.leaf import LeafStore
 from olive.proto.health import HealthService
 from olive.proto.rpc import GRPCServerBase
 from onion.core.onion import OnionService
@@ -32,7 +33,7 @@ class OnionApp(App):
         # configuration handler
         config_handler = 'yaml'
 
-        cache_handler = 'redis'
+        cache_handler = 'iredis'
 
         # configuration file suffix
         config_file_suffix = '.yml'
@@ -42,7 +43,8 @@ class OnionApp(App):
 
         # register handlers
         handlers = [
-            Base
+            Base,
+            CustomRedisCacheHandler
         ]
 
     def run(self):
@@ -53,10 +55,6 @@ class OnionApp(App):
         target_database = mongo.service_db
         leaf_store = LeafStore(target_database.leaf, self)
         self.log.info('current service name: ' + self._meta.label)
-
-        # Set a cached value
-        # TODO use cache where its needed
-        # self.cache.set(key='my_key', value='my value', time=20)
 
         # Passing self for app is suggested by Cement Core Developer:
         #   - https://github.com/datafolklabs/cement/issues/566
@@ -90,6 +88,7 @@ class OnionAppTest(TestApp, OnionApp):
 def main():
     with OnionApp() as app:
         try:
+            app.handler.register(CustomRedisCacheHandler)
             app.run()
         except AssertionError as e:
             print('AssertionError > %s' % e.args[0])

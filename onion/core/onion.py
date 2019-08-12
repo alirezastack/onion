@@ -1,3 +1,4 @@
+from olive.exc import SaveError
 from olive.proto import zoodroom_pb2_grpc
 from marshmallow import ValidationError
 from olive.proto.rpc import Response
@@ -11,7 +12,7 @@ class OnionService(zoodroom_pb2_grpc.OnionServiceServicer):
 
     def AddLeaf(self, request: AddLeafRequest, context) -> AddLeafResponse:
         try:
-            # TODO to be implemented
+            self.app.log.info('accepted fields by gRPC proto: {}'.format(request.DESCRIPTOR.fields_by_name.keys()))
             return Response.message(
 
             )
@@ -21,6 +22,15 @@ class OnionService(zoodroom_pb2_grpc.OnionServiceServicer):
                 error={
                     'code': 'value_error',
                     'message': str(ve),
+                    'details': []
+                }
+            )
+        except SaveError as se:
+            self.app.log.error('document cannot be added:\r\n{}'.format(traceback.format_exc()))
+            return Response.message(
+                error={
+                    'code': 'save_error',
+                    'message': str(se),
                     'details': []
                 }
             )
